@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Self-Evaluation Form</title>
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            font-family: Arial, sans-serif;
+        }
+
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #f4f4f4;
+        }
+
+        .container {
+            width: 85%;
+            max-width: 1200px;
+            min-height: 85vh;
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            box-sizing: border-box;
+            overflow: auto;
+        }
+
+        h1, h2 {
+            margin: 0;
+            padding-bottom: 20px;
+        }
+
+        .table-section {
+            margin-bottom: 40px;
+        }
+
+        .styled-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+
+        .styled-table th, .styled-table td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: left;
+        }
+
+        .styled-table th {
+            background-color: #f2f2f2;
+            color: #333;
+        }
+
+        .styled-table td input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        .styled-table td button {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 4px;
+            color: #fff;
+            cursor: pointer;
+        }
+
+        .styled-table td button.save-row-btn {
+            background-color: #28a745;
+        }
+
+        .styled-table td button.delete-row-btn {
+            background-color: #dc3545;
+        }
+
+        .styled-table td button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+
+        .add-row-btn, .finish-btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            background-color: #007bff;
+            color: #fff;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+
+        .add-row-btn:hover, .finish-btn:hover {
+            background-color: #0056b3;
+        }
+
+        .error-row {
+            background-color: #f8d7da; /* Light red background for errors */
+        }
+    </style>
+    <script src="https://apis.google.com/js/api.js"></script>
+    <script>
+        const CLIENT_ID = '435138252809-8p4m1f5h5kgos04bfoee8belnoda1e2t.apps.googleusercontent.com'; 
+        const API_KEY = 'AIzaSyDMim9DjohKE6VjWr1xPYUlsY9D9AtD8Kk';
+        const SPREADSHEET_ID = '15e_zECIyvE3rfoCWqnlHrKSTVp6hooiTvfJqZmRCbiE';
+        const SHEET_NAME = 'asset2-LOGISTICS_SPREADSHEET-1';
+        const DISCOVERY_DOCS = ["https://sheets.googleapis.com/$discovery/rest?version=v4"];
+        const SCOPES = "https://www.googleapis.com/auth/spreadsheets";
+
+        let motherDataObject = {
+            skillCluster: [],
+            technicalCluster: []
+        };
+
+        function addSkillClusterRow() {
+            const tableBody = document.getElementById('skill-cluster-body');
+            const rowId = `sc-log-${tableBody.children.length + 1}`;
+            const newRow = document.createElement('tr');
+            newRow.id = rowId;
+            newRow.innerHTML = `
+                <td>${rowId}</td>
+                <td><input type="text" class="title-input"></td>
+                <td><input type="text" class="description-input"></td>
+                <td><input type="number" class="selfscore-input" min="0" max="10"></td>
+                <td><input type="number" class="experience-input" min="0" max="10"></td>
+                <td><input type="number" class="assignment-input" min="0" max="10"></td>
+                <td>
+                    <button class="save-row-btn" onclick="saveRowData('${rowId}', 'skillCluster')" disabled>Save</button>
+                    <button class="delete-row-btn" onclick="deleteRow('${rowId}')">Delete</button>
+                </td>
+            `;
+            tableBody.appendChild(newRow);
+            enableSaveOnChange(rowId, 'skillCluster');
+        }
+
+        function addTechnicalClusterRow() {
+            const tableBody = document.getElementById('technical-cluster-body');
+            const rowId = `tc-log-${tableBody.children.length + 1}`;
+            const newRow = document.createElement('tr');
+            newRow.id = rowId;
+            newRow.innerHTML = `
+                <td>${rowId}</td>
+                <td><input type="text" class="title-input"></td>
+                <td><input type="text" class="description-input"></td>
+                <td><input type="number" class="selfscore-input" min="0" max="10"></td>
+                <td><input type="number" class="experience-input" min="0" max="10"></td>
+                <td><input type="number" class="assignment-input" min="0" max="10"></td>
+                <td>
+                    <button class="save-row-btn" onclick="saveRowData('${rowId}', 'technicalCluster')" disabled>Save</button>
+                    <button class="delete-row-btn" onclick="deleteRow('${rowId}')">Delete</button>
+                </td>
+            `;
+            tableBody.appendChild(newRow);
+            enableSaveOnChange(rowId, 'technicalCluster');
+        }
+
+        function enableSaveOnChange(rowId, clusterType) {
+            const rowInputs = document.querySelectorAll(`#${rowId} input`);
+            rowInputs.forEach(input => {
+                input.addEventListener('input', function () {
+                    const saveButton = document.querySelector(`#${rowId} .save-row-btn`);
+                    saveButton.disabled = false;
+                });
+            });
+        }
+
+        function saveRowData(rowId, clusterType) {
+            const row = document.getElementById(rowId);
+            const title = row.querySelector('.title-input').value;
+            const description = row.querySelector('.description-input').value;
+            const selfScore = row.querySelector('.selfscore-input').value;
+            const experience = row.querySelector('.experience-input').value;
+            const assignment = row.querySelector('.assignment-input').value;
+
+            if (title && description && selfScore && experience && assignment) {
+                const dataObject = {
+                    id: rowId,
+                    title,
+                    description,
+                    selfScore: parseInt(selfScore, 10),
+                    experience: parseInt(experience, 10),
+                    assignment: parseInt(assignment, 10)
+                };
+
+                motherDataObject[clusterType].push(dataObject);
+
+                sessionStorage.setItem('motherDataObject', JSON.stringify(motherDataObject));
+                
+                const saveButton = row.querySelector('.save-row-btn');
+                saveButton.disabled = true;
+            } else {
+                row.classList.add('error-row');
+            }
+        }
+
+        function deleteRow(rowId) {
+            const row = document.getElementById(rowId);
+            row.remove();
+        }
+
+        function finishDetails(clusterType) {
+            if (clusterType === 'skill-cluster') {
+                saveDataToSheet(motherDataObject.skillCluster);
+            } else if (clusterType === 'technical-cluster') {
+                saveDataToSheet(motherDataObject.technicalCluster);
+            }
+        }
+
+        function initClient() {
+            gapi.client.init({
+                apiKey: API_KEY,
+                clientId: CLIENT_ID,
+                discoveryDocs: DISCOVERY_DOCS,
+                scope: SCOPES
+            }).then(() => {
+                gapi.auth2.getAuthInstance().signIn().then(user => {
+                    const accessToken = gapi.auth2.getAuthInstance().currentUser.get().getAuthResponse().access_token;
+                    saveDataToSheet(accessToken);
+                });
+            });
+        }
+
+        async function saveDataToSheet(accessToken) {
+            const candidate_id = generateCandidateId();
+            
+            motherDataObject.skillCluster.forEach(item => item.candidate_id = candidate_id);
+            motherDataObject.technicalCluster.forEach(item => item.candidate_id = candidate_id);
+
+            const data = [...motherDataObject.skillCluster, ...motherDataObject.technicalCluster];
+
+            const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${SHEET_NAME}!A1:append?valueInputOption=RAW`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${accessToken}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    range: `${SHEET_NAME}!A1`,
+                    majorDimension: 'ROWS',
+                    values: data.map(item => [
+                        item.candidate_id, 
+                        item.id, 
+                        item.title, 
+                        item.description, 
+                        item.selfScore, 
+                        item.experience, 
+                        item.assignment
+                    ])
+                })
+            });
+
+            const result = await response.json();
+            console.log('Data saved:', result);
+        }
+
+        function handleClientLoad() {
+            gapi.load('client:auth2', initClient);
+        }
+
+        function generateCandidateId() {
+            return 'CID' + Math.random().toString(36).substring(2, 10).toUpperCase();
+        }
+
+        function openGoogleAuthPopup() {
+            const popup = window.open('https://accounts.google.com/o/oauth2/auth', 'googleAuthPopup', 'width=600,height=400');
+            
+            if (popup) {
+                const checkPopupClosed = setInterval(() => {
+                    if (popup.closed) {
+                        clearInterval(checkPopupClosed);
+                        alert('Popup closed by user');
+                    }
+                }, 1000);
+            } else {
+                alert('Popup blocked');
+            }
+        }
+    </script>
+</head>
+<body onload="handleClientLoad()">
+    <div class="container">
+        <h1>Self-Evaluation Form</h1>
+        <div class="table-section">
+            <h2>Skill Cluster</h2>
+            <table class="styled-table" id="skill-cluster-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Title</th>
+                        <th>Description</th>
+                        <th>Self Score</th>
+                        <th>Experience</th>
+                        <th>Assignment</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="skill-cluster-body">
+                    <!-- Dynamic rows go here -->
+                </tbody>
+            </table>
+            <button class="add-row-btn" onclick="addSkillClusterRow()">Add Row</button>
+            <button class="finish-btn" onclick="finishDetails('skill-cluster')">Finish</button>
+        </div>
+
+        <div class="table-section">
+            <h2>Technical Cluster</h2>
+            <table class="styled-table" id="technical-cluster-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Title</th>
+                        <th>Description</th>
+                        <th>Self Score</th>
+                        <th>Experience</th>
+                        <th>Assignment</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="technical-cluster-body">
+                    <!-- Dynamic rows go here -->
+                </tbody>
+            </table>
+            <button class="add-row-btn" onclick="addTechnicalClusterRow()">Add Row</button>
+            <button class="finish-btn" onclick="finishDetails('technical-cluster')">Finish</button>
+        </div>
+    </div>
+</body>
+</html>
